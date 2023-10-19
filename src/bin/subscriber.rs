@@ -1,22 +1,7 @@
-//
-// Copyright (c) 2023 ZettaScale Technology
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Apache License, Version 2.0
-// which is available at https://www.apache.org/licenses/LICENSE-2.0.
-//
-// SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
-//
-// Contributors:
-//   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
-//
-use async_std::task::sleep;
 use clap::{App, Arg};
 use futures::prelude::*;
 use futures::select;
 use std::convert::TryFrom;
-use std::time::Duration;
 use zenoh::config::Config;
 use zenoh::prelude::r#async::*;
 
@@ -25,7 +10,10 @@ async fn main() {
     // Initiate logging
     env_logger::init();
 
-    let (config, key_expr) = parse_args();
+    let config = parse_args();
+    let key_expr = KeyExpr::try_from("test/random")
+    .unwrap()
+    .into_owned();
 
     println!("Opening session...");
     let session = zenoh::open(config).res().await.unwrap();
@@ -41,14 +29,13 @@ async fn main() {
         select!(
             sample = subscriber.recv_async() => {
                 let sample = sample.unwrap();
-                println!(">> [Subscriber] Received {} ('{}': '{}')",
+                println!(">> [Subscriber] Received {} ('{}': '{:?}')",
                     sample.kind, sample.key_expr.as_str(), sample.value);
             },
 
             _ = stdin.read_exact(&mut input).fuse() => {
                 match input[0] {
                     b'q' => break,
-                    0 => sleep(Duration::from_secs(1)).await,
                     _ => (),
                 }
             }
@@ -56,8 +43,8 @@ async fn main() {
     }
 }
 
-fn parse_args() -> (Config, KeyExpr<'static>) {
-    let args = App::new("zenoh sub example")
+fn parse_args() -> Config {
+    let args = App::new("Zenoh Sub Random Number")
         .arg(
             Arg::from_usage("-m, --mode=[MODE]  'The zenoh session mode (peer by default).")
                 .possible_values(["peer", "client"]),
@@ -68,10 +55,6 @@ fn parse_args() -> (Config, KeyExpr<'static>) {
         .arg(Arg::from_usage(
             "-l, --listen=[ENDPOINT]...   'Endpoints to listen on.'",
         ))
-        .arg(
-            Arg::from_usage("-k, --key=[KEYEXPR] 'The key expression to subscribe to.'")
-                .default_value("demo/example/**"),
-        )
         .arg(Arg::from_usage(
             "-c, --config=[FILE]      'A configuration file.'",
         ))
@@ -98,9 +81,5 @@ fn parse_args() -> (Config, KeyExpr<'static>) {
         config.scouting.multicast.set_enabled(Some(false)).unwrap();
     }
 
-    let key_expr = KeyExpr::try_from(args.value_of("key").unwrap())
-        .unwrap()
-        .into_owned();
-
-    (config, key_expr)
+    config
 }

@@ -1,28 +1,17 @@
-//
-// Copyright (c) 2023 ZettaScale Technology
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Apache License, Version 2.0
-// which is available at https://www.apache.org/licenses/LICENSE-2.0.
-//
-// SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
-//
-// Contributors:
-//   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
-//
 use async_std::task::sleep;
 use clap::{App, Arg};
 use std::time::Duration;
 use zenoh::config::Config;
 use zenoh::prelude::r#async::*;
+use rand::Rng;
 
 #[async_std::main]
 async fn main() {
     // Initiate logging
     env_logger::init();
 
-    let (config, key_expr, value) = parse_args();
+    let config = parse_args();
+    let key_expr = String::from("test/random");
 
     println!("Opening session...");
     let session = zenoh::open(config).res().await.unwrap();
@@ -30,16 +19,21 @@ async fn main() {
     println!("Declaring Publisher on '{key_expr}'...");
     let publisher = session.declare_publisher(&key_expr).res().await.unwrap();
 
-    for idx in 0..u32::MAX {
-        sleep(Duration::from_secs(1)).await;
-        let buf = format!("[{idx:4}] {value}");
+    let mut rng = rand::thread_rng();
+    loop {
+        // sleep 2 seconds
+        sleep(Duration::from_secs(2)).await;
+        // generate random i32 value
+        let buf:i32 = rng.gen();
+        // log
         println!("Putting Data ('{}': '{}')...", &key_expr, buf);
+        // publish the value
         publisher.put(buf).res().await.unwrap();
     }
 }
 
-fn parse_args() -> (Config, String, String) {
-    let args = App::new("zenoh pub example")
+fn parse_args() -> Config {
+    let args = App::new("Zenoh Pub Random Number")
         .arg(
             Arg::from_usage("-m, --mode=[MODE] 'The zenoh session mode (peer by default).")
                 .possible_values(["peer", "client"]),
@@ -50,14 +44,6 @@ fn parse_args() -> (Config, String, String) {
         .arg(Arg::from_usage(
             "-l, --listen=[ENDPOINT]...   'Endpoints to listen on.'",
         ))
-        .arg(
-            Arg::from_usage("-k, --key=[KEYEXPR]        'The key expression to publish onto.'")
-                .default_value("demo/example/zenoh-rs-pub"),
-        )
-        .arg(
-            Arg::from_usage("-v, --value=[VALUE]      'The value to publish.'")
-                .default_value("Pub from Rust!"),
-        )
         .arg(Arg::from_usage(
             "-c, --config=[FILE]      'A configuration file.'",
         ))
@@ -84,8 +70,5 @@ fn parse_args() -> (Config, String, String) {
         config.scouting.multicast.set_enabled(Some(false)).unwrap();
     }
 
-    let key_expr = args.value_of("key").unwrap().to_string();
-    let value = args.value_of("value").unwrap().to_string();
-
-    (config, key_expr, value)
+    config
 }
