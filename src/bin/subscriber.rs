@@ -11,7 +11,9 @@ async fn main() {
     env_logger::init();
 
     let config = parse_args();
-    let key_expr = KeyExpr::try_from("test/random").unwrap().into_owned();
+    let sub_key_expr = KeyExpr::try_from("test/random").unwrap().into_owned();
+    let quer_key_expr_str = "test/average";
+    let quer_key_expr = KeyExpr::try_from(quer_key_expr_str).unwrap().into_owned();
 
     let mut sum: i64 = 0; // i64 to avoid overflow
     let mut nb_values: u128 = 0; // u128 for max scalability
@@ -19,9 +21,18 @@ async fn main() {
     println!("Opening session...");
     let session = zenoh::open(config).res().await.unwrap();
 
-    println!("Declaring Subscriber on '{}'...", &key_expr);
+    println!("Declaring Subscriber on '{}'...", &sub_key_expr);
 
-    let subscriber = session.declare_subscriber(&key_expr).res().await.unwrap();
+    let subscriber = session
+        .declare_subscriber(&sub_key_expr)
+        .res()
+        .await
+        .unwrap();
+    let queryable = session
+        .declare_queryable(&quer_key_expr)
+        .res()
+        .await
+        .unwrap();
 
     println!("Enter 'q' to quit...");
     let mut stdin = async_std::io::stdin();
@@ -37,11 +48,20 @@ async fn main() {
                     Ok(v) => {
                         sum += v as i64;
                         nb_values += 1;
-                        println!("Current average is: {}", sum as f64 / nb_values as f64);
                     },
                     Err(e) => println!("Error occured: {e}"),
                 }
             },
+            query = queryable.recv_async() => {
+                if let Ok(query) = query {
+                    let current_average = sum as f64 / nb_values as f64;
+                    println!(">> [Queryable] Received query for '{}': Responding with current average {}", query.key_expr(), current_average);
+                    query.reply(Ok(Sample::try_from(quer_key_expr_str, current_average).unwrap()))
+                    .res()
+                    .await
+                    .unwrap();
+                }
+            }
 
             _ = stdin.read_exact(&mut input).fuse() => {
                 match input[0] {
