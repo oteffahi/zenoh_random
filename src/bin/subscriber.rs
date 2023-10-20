@@ -11,9 +11,10 @@ async fn main() {
     env_logger::init();
 
     let config = parse_args();
-    let key_expr = KeyExpr::try_from("test/random")
-    .unwrap()
-    .into_owned();
+    let key_expr = KeyExpr::try_from("test/random").unwrap().into_owned();
+
+    let mut sum: i64 = 0; // i64 to avoid overflow
+    let mut nb_values: u128 = 0; // u128 for max scalability
 
     println!("Opening session...");
     let session = zenoh::open(config).res().await.unwrap();
@@ -33,7 +34,11 @@ async fn main() {
                     sample.kind, sample.key_expr.as_str(), sample.value);
                 let value = i32::try_from(sample.value);
                 match value {
-                    Ok(v) => println!("Got random value {v}"),
+                    Ok(v) => {
+                        sum += v as i64;
+                        nb_values += 1;
+                        println!("Current average is: {}", sum as f64 / nb_values as f64);
+                    },
                     Err(e) => println!("Error occured: {e}"),
                 }
             },
