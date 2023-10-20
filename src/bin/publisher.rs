@@ -1,16 +1,16 @@
 use async_std::task::sleep;
 use clap::{App, Arg};
+use rand::Rng;
 use std::time::Duration;
 use zenoh::config::Config;
 use zenoh::prelude::r#async::*;
-use rand::Rng;
 
 #[async_std::main]
 async fn main() {
     // Initiate logging
     env_logger::init();
 
-    let config = parse_args();
+    let (config, delay) = parse_args();
     let key_expr = String::from("test/random");
 
     println!("Opening session...");
@@ -19,12 +19,14 @@ async fn main() {
     println!("Declaring Publisher on '{key_expr}'...");
     let publisher = session.declare_publisher(&key_expr).res().await.unwrap();
 
+    println!("Running with delay={delay}ms");
+
     let mut rng = rand::thread_rng();
     loop {
-        // sleep 2 seconds
-        sleep(Duration::from_secs(2)).await;
+        // sleep
+        sleep(Duration::from_millis(delay)).await;
         // generate random i32 value
-        let buf:i32 = rng.gen();
+        let buf: i32 = rng.gen();
         // log
         println!("Putting Data ('{}': '{}')...", &key_expr, buf);
         // publish the value
@@ -32,7 +34,7 @@ async fn main() {
     }
 }
 
-fn parse_args() -> Config {
+fn parse_args() -> (Config, u64) {
     let args = App::new("Zenoh Pub Random Number")
         .arg(
             Arg::from_usage("-m, --mode=[MODE] 'The zenoh session mode (peer by default).")
@@ -50,6 +52,12 @@ fn parse_args() -> Config {
         .arg(Arg::from_usage(
             "--no-multicast-scouting 'Disable the multicast-based scouting mechanism.'",
         ))
+        .arg(
+            Arg::from_usage(
+                "-d, --delay=[value]   'Delay (ms) between each two publish events'",
+            )
+            .default_value("2000"),
+        )
         .get_matches();
 
     let mut config = if let Some(conf_file) = args.value_of("config") {
@@ -70,5 +78,11 @@ fn parse_args() -> Config {
         config.scouting.multicast.set_enabled(Some(false)).unwrap();
     }
 
-    config
+    let delay = args.value_of("delay").unwrap().to_string().parse::<u64>();
+    if let Ok(d) = delay {
+        (config, d)
+    } else {
+        // in case of error use default value for delay
+        (config, 2000)
+    }
 }
