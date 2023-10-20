@@ -29,8 +29,13 @@ async fn main() {
         select!(
             sample = subscriber.recv_async() => {
                 let sample = sample.unwrap();
-                println!(">> [Subscriber] Received {} ('{}': '{:?}')",
+                println!(">> [Subscriber] Received {} ('{}': '{}')",
                     sample.kind, sample.key_expr.as_str(), sample.value);
+                let value = i32::try_from(sample.value);
+                match value {
+                    Ok(v) => println!("Got random value {v}"),
+                    Err(e) => println!("Error occured: {e}"),
+                }
             },
 
             _ = stdin.read_exact(&mut input).fuse() => {
