@@ -54,7 +54,10 @@ async fn main() {
             },
             query = queryable.recv_async() => {
                 if let Ok(query) = query {
-                    let current_average = sum as f64 / nb_values as f64;
+                    let mut current_average: f64 = 0.0;
+                    if nb_values > 0 {
+                        current_average = sum as f64 / nb_values as f64
+                    }
                     println!(">> [Queryable] Received query for '{}': Responding with current average {}", query.key_expr(), current_average);
                     query.reply(Ok(Sample::try_from(quer_key_expr_str, current_average).unwrap()))
                     .res()
