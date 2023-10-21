@@ -49,7 +49,7 @@ async fn main() {
                         sum += v as i64;
                         nb_values += 1;
                     },
-                    Err(e) => println!("Error occured: {e}"),
+                    Err(e) => println!("Error occurred: {e}"),
                 }
             },
             query = queryable.recv_async() => {
