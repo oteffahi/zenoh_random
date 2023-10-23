@@ -52,7 +52,7 @@ async fn main() {
 }
 
 fn parse_args() -> (Config, QueryTarget, Duration) {
-    let args = App::new("zenoh query example")
+    let args = App::new("Zenoh Client Random Number")
         .arg(
             Arg::from_usage("-m, --mode=[MODE]  'The zenoh session mode (peer by default).")
                 .possible_values(["peer", "client"]),
