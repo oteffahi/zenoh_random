@@ -2,6 +2,8 @@ use clap::{App, Arg};
 use futures::prelude::*;
 use futures::select;
 use std::convert::TryFrom;
+mod utils;
+use utils::QueryableData;
 use zenoh::config::Config;
 use zenoh::prelude::r#async::*;
 // use async_std::task::sleep;
@@ -63,7 +65,8 @@ async fn main() {
                     }
                     println!(">> [Queryable] Received query for '{}': Responding with current average {}", query.key_expr(), current_average);
                     // sleep(Duration::from_millis(5000)).await; // simulate work after calculating average
-                    query.reply(Ok(Sample::try_from(quer_key_expr_str, current_average).unwrap()))
+                    let resp = QueryableData::new(current_average, nb_values);
+                    query.reply(Ok(Sample::try_from(quer_key_expr_str, serde_json::to_string(&resp).unwrap()).unwrap()))
                     .res()
                     .await
                     .unwrap();

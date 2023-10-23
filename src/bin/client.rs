@@ -3,6 +3,8 @@ use std::convert::TryFrom;
 use std::time::Duration;
 use zenoh::config::Config;
 use zenoh::prelude::r#async::*;
+mod utils;
+use utils::QueryableData;
 
 #[async_std::main]
 async fn main() {
@@ -18,21 +20,35 @@ async fn main() {
     println!("Sending Query '{selector}'...");
     let replies = session
         .get(selector)
+        .consolidation(ConsolidationMode::None) // no consolidation, to receive all replies and compare counters
         .target(target)
         .timeout(timeout)
         .res()
         .await
         .unwrap();
+
+    let mut max: u128 = 0;
+    let mut average = 0f64;
     while let Ok(reply) = replies.recv_async().await {
         match reply.sample {
-            Ok(sample) => println!(
-                ">> Received ('{}': '{}')",
-                sample.key_expr.as_str(),
-                f64::try_from(sample.value).unwrap(),
-            ),
+            Ok(sample) => {
+                let resp = String::try_from(sample.value).unwrap();
+                let resp: QueryableData = serde_json::from_str(&resp).unwrap();
+                println!(
+                    ">> Received ('{}': '{} {}')",
+                    sample.key_expr.as_str(),
+                    resp.average,
+                    resp.nb_values
+                );
+                if resp.nb_values > max {
+                    max = resp.nb_values;
+                    average = resp.average;
+                }
+            }
             Err(err) => println!(">> Received (ERROR: '{}')", String::try_from(&err).unwrap()),
         }
     }
+    println!("Selected average: {average} with nb_values={max}");
 }
 
 fn parse_args() -> (Config, QueryTarget, Duration) {

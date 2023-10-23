@@ -4,6 +4,8 @@ use futures::select;
 use std::convert::TryFrom;
 use std::sync::Arc;
 use std::sync::RwLock;
+mod utils;
+use utils::QueryableData;
 use zenoh::config::Config;
 use zenoh::prelude::r#async::*;
 use zenoh::prelude::sync::SyncResolve;
@@ -22,7 +24,7 @@ async fn main() {
 
     let sum: Arc<RwLock<i64>> = Arc::new(RwLock::new(0)); // i64 to avoid overflow
     let nb_values: Arc<RwLock<u128>> = Arc::new(RwLock::new(0)); // u128 for max scalability
-    // clone to access sum and nb_values after move in closure
+                                                                 // clone to access sum and nb_values after move in closure
     let sum_clone = sum.clone();
     let nb_values_clone = nb_values.clone();
 
@@ -72,10 +74,13 @@ async fn main() {
                 current_average
             );
             // sleep(Duration::from_millis(5000)); // simulate work after acquiring locks and calculating average
+            let resp = QueryableData::new(current_average, nb_values);
             query
-                .reply(Ok(
-                    Sample::try_from(quer_key_expr_str, current_average).unwrap()
-                ))
+                .reply(Ok(Sample::try_from(
+                    quer_key_expr_str,
+                    serde_json::to_string(&resp).unwrap(),
+                )
+                .unwrap()))
                 .res_sync()
                 .unwrap();
         })
