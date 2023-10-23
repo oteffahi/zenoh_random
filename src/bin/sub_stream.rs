@@ -4,6 +4,8 @@ use futures::select;
 use std::convert::TryFrom;
 use zenoh::config::Config;
 use zenoh::prelude::r#async::*;
+// use async_std::task::sleep;
+// use std::time::Duration;
 
 #[async_std::main]
 async fn main() {
@@ -55,10 +57,12 @@ async fn main() {
             query = queryable.recv_async() => {
                 if let Ok(query) = query {
                     let mut current_average: f64 = 0.0;
+                    // sleep(Duration::from_millis(5000)).await; // simulate work before calculating average
                     if nb_values > 0 {
                         current_average = sum as f64 / nb_values as f64
                     }
                     println!(">> [Queryable] Received query for '{}': Responding with current average {}", query.key_expr(), current_average);
+                    // sleep(Duration::from_millis(5000)).await; // simulate work after calculating average
                     query.reply(Ok(Sample::try_from(quer_key_expr_str, current_average).unwrap()))
                     .res()
                     .await

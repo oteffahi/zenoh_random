@@ -7,6 +7,8 @@ use std::sync::RwLock;
 use zenoh::config::Config;
 use zenoh::prelude::r#async::*;
 use zenoh::prelude::sync::SyncResolve;
+// use std::thread::sleep;
+// use std::time::Duration;
 
 #[async_std::main]
 async fn main() {
@@ -56,10 +58,11 @@ async fn main() {
     let _queryable = session
         .declare_queryable(&quer_key_expr)
         .callback(move |query| {
+            // sleep(Duration::from_millis(5000)); // simulate work before acquiring locks
             let mut current_average: f64 = 0.0;
             let sum = *sum_clone.read().unwrap();
             let nb_values = *nb_values_clone.read().unwrap();
-
+            // sleep(Duration::from_millis(5000)); // simulate work after acquiring locks
             if nb_values > 0 {
                 current_average = sum as f64 / nb_values as f64;
             }
@@ -68,6 +71,7 @@ async fn main() {
                 query.key_expr(),
                 current_average
             );
+            // sleep(Duration::from_millis(5000)); // simulate work after acquiring locks and calculating average
             query
                 .reply(Ok(
                     Sample::try_from(quer_key_expr_str, current_average).unwrap()
