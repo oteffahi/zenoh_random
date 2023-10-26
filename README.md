@@ -171,9 +171,9 @@ By digging through the logs of each instance, we can see that the high-counter r
 
 ## 5. On the callback-based and stream-based APIs implementation
 
-Implementing the callback-based subscriber and queryable was a straightforward task. The stream-based implementation was much more technical.
+Implementing the stream-based subscriber and queryable was a straightforward task. The callback-based implementation was much more technical.
 
-The stream-based API allows for the subscriber and queryable to run concurrently, which means that the application can concurrently handle a publish event and respond to a query. Due to the nature of the callback functions and the concurrency, the implementation required the usage of `RwLock` for handling concurrent R/W operations, and `Arc` for thread-safety.
+The callback-based API allows for the subscriber and queryable to run concurrently, which means that the application can concurrently handle a publish event and respond to a query. Due to the nature of the callback functions and the concurrency, the implementation required the usage of `RwLock` for handling concurrent R/W operations, and `Arc` for thread-safety.
 
 The following are some noteworthy behaviors:
 - In the stream-based implementation, the usage of `select!` effectively linearizes the handling of publish events and queries. By adding a `sleep` call @`sub_stream:62`, we can simulate heavy computation in handling the query. The observed behavior is that publish events are not handled during the sleeping time. When the query response is sent, all publish events that were put on hold are sequentially processed. This implies the existence of a queue that can potentially overflow in high throughput environments if the query computation is heavy enough.
